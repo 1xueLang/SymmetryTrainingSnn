@@ -84,29 +84,31 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
         self.stride = stride
         self.symm1 = symm.SymmForward(
-            snn=nn.Sequential(neuron.LIF(tau=tau), snnalgo.Tosnn(nn.Sequential(
-                nn.Conv2d(inplanes, width, 1, 1,), nn.BatchNorm2d(width)))),
-            ann=nn.Sequential(nn.ReLU(), nn.Conv2d(inplanes, width, 1, 1,), nn.BatchNorm2d(width)),
+            snn=nn.Sequential(snnalgo.Tosnn(nn.BatchNorm2d(inplanes)), neuron.LIF(tau=tau),
+                              snnalgo.Tosnn(nn.Conv2d(inplanes, width, 1, 1))),
+            ann=nn.Sequential(nn.BatchNorm2d(inplanes), nn.ReLU(), nn.Conv2d(inplanes, width, 1, 1,)),
             **symm_config
         )
         self.symm2 = symm.SymmForward(
-            snn=nn.Sequential(neuron.LIF(tau=tau), snnalgo.Tosnn(nn.Sequential(
-                nn.Conv2d(width, width, 3, stride, groups=groups, dilation=dilation), 
-                nn.BatchNorm2d(width)))),
+            snn=nn.Sequential(
+                snnalgo.Tosnn(nn.BatchNorm2d(width)),
+                neuron.LIF(tau=tau),
+                snnalgo.Tosnn(nn.Conv2d(width, width, 3, stride, groups=groups, dilation=dilation))),
             ann=nn.Sequential(
+                nn.BatchNorm2d(width),
                 nn.ReLU(),
-                nn.Conv2d(width, width, 3, stride, groups=groups, dilation=dilation), 
-                nn.BatchNorm2d(width)),
+                nn.Conv2d(width, width, 3, stride, groups=groups, dilation=dilation),),
             **symm_config
         )
         self.symm3 = symm.SymmForward(
-            snn=nn.Sequential(neuron.LIF(tau=tau), snnalgo.Tosnn(nn.Sequential(
-                nn.Conv2d(inplanes, planes * self.expansion, 1, 1,), 
-                nn.BatchNorm2d(planes * self.expansion)))),
+            snn=nn.Sequential(
+                snnalgo.Tosnn(nn.BatchNorm2d(width)),
+                neuron.LIF(tau=tau),
+                snnalgo.Tosnn(nn.Conv2d(width, planes * self.expansion, 1, 1,))),
             ann=nn.Sequential(
+                nn.BatchNorm2d(width),
                 nn.ReLU(), 
-                nn.Conv2d(inplanes, planes * self.expansion, 1, 1,), 
-                nn.BatchNorm2d(planes * self.expansion)),
+                nn.Conv2d(width, planes * self.expansion, 1, 1,)),
             **symm_config
         )
 
@@ -120,6 +122,7 @@ class Bottleneck(nn.Module):
         h = self.symm2(h)
         h = self.symm3(h)
         return [h[0] + identity[0], h[1] + identity[1]]
+
 
 class ResNet(nn.Module):
     def __init__(
@@ -165,8 +168,10 @@ class ResNet(nn.Module):
         
         tau = symm_config.get('tau', 2.0)
         self.pooling = symm.SymmForward(
-            snn=nn.Sequential(neuron.LIF(tau=tau), snnalgo.Tosnn(nn.AdaptiveAvgPool2d((1, 1)))),
-            ann=nn.Sequential(nn.ReLU(), nn.AdaptiveAvgPool2d((1, 1))),
+            snn=nn.Sequential(snnalgo.Tosnn(nn.BatchNorm2d(512 * block.expansion)),
+                              neuron.LIF(tau=tau), snnalgo.Tosnn(nn.AdaptiveAvgPool2d((1, 1)))),
+            ann=nn.Sequential(nn.BatchNorm2d(512 * block.expansion),
+                              nn.ReLU(), nn.AdaptiveAvgPool2d((1, 1))),
             symm_training=False, symm_connect=False
         )
         self.classify = symm.SymmForward(

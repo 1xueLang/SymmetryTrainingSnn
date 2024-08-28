@@ -22,6 +22,12 @@ class CNN10(nn.Module):
 
             symm.SymmConvSequential(h_channels, h_channels, **symm_config),
             symm.SymmConvSequential(h_channels, h_channels, stride=2, **symm_config),
+
+            symm.SymmForward(
+                snn=snnalgo.Tosnn(nn.BatchNorm2d(h_channels)),
+                ann=nn.BatchNorm2d(h_channels),
+                symm_training=False, symm_connect=False
+            )
         )
         classifier = [symm.SymmLinearSequential(h_channels * 4, h_channels, **symm_config),]
         symm_config['symm_training'] = False
@@ -56,6 +62,4 @@ if __name__ == '__main__':
         print(loss.item())
         print(symm_config)
         print(aout.shape, sout.shape)
-
-    print({}.get(1, 2))
 

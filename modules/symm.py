@@ -6,21 +6,20 @@ import snetx.cuend.neuron as neuron
 class SymmConvSequential(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, tau=2., scale=0.5, symm_training=True, symm_connect=False, pooling=None):
         super().__init__()
-        annconv = [nn.ReLU(),]
+        annconv = [nn.BatchNorm2d(in_planes), nn.ReLU(),]
         snnconv = []
-        if pooling != None:
+        if pooling is not None:
             annconv += [pooling]
             snnconv += [pooling]
         annconv += [
             nn.Conv2d(in_planes, out_planes, 3, stride=stride, padding=1),
-            nn.BatchNorm2d(out_planes),
         ]
         self.annconv = nn.Sequential(*annconv)
         snnconv += [
             nn.Conv2d(in_planes, out_planes, 3, stride=stride, padding=1),
-            nn.BatchNorm2d(out_planes),
         ]
         self.snnconv = nn.Sequential(
+            snnalgo.Tosnn(nn.BatchNorm2d(in_planes)),
             neuron.LIF(tau=tau),
             snnalgo.Tosnn(nn.Sequential(*snnconv))
         )
@@ -45,13 +44,8 @@ class SymmConvSequential(nn.Module):
 class SymmConvEncoder(nn.Module):
     def __init__(self, conv_config, scale=0.5, symm_training=True, symm_connect=False, **kwargs):
         super().__init__()
-        out_planes = conv_config['out_channels']
-        self.ann = nn.Sequential(
-            nn.Conv2d(**conv_config), nn.BatchNorm2d(out_planes)
-        )
-        self.snn = snnalgo.Tosnn(
-            nn.Sequential(nn.Conv2d(**conv_config), nn.BatchNorm2d(out_planes))
-        )
+        self.ann = nn.Conv2d(**conv_config)
+        self.snn = snnalgo.Tosnn(nn.Conv2d(**conv_config))
         self.scale = scale
         self.symm_training = symm_training
         self.symm_connect = symm_connect

@@ -19,17 +19,17 @@ class VGG11(nn.Module):
             symm.SymmConvSequential(512, 512, pooling=nn.AvgPool2d(2, 2), **symm_config),
             symm.SymmConvSequential(512, 512, **symm_config),
             symm.SymmForward(
-                snn=nn.Sequential(neuron.LIF(tau=tau), snnalgo.Tosnn(nn.AdaptiveAvgPool2d((7, 7))),),
-                ann=nn.Sequential(nn.ReLU(), nn.AdaptiveAvgPool2d((7, 7)),),
-                symm_training=False,
-                symm_connect=False
+                snn=nn.Sequential(snnalgo.Tosnn(nn.BatchNorm2d(512)),
+                                  neuron.LIF(tau=tau),
+                                  snnalgo.Tosnn(nn.AdaptiveAvgPool2d((7, 7))),),
+                ann=nn.Sequential(nn.BatchNorm2d(512), nn.ReLU(), nn.AdaptiveAvgPool2d((7, 7)),),
+                symm_training=False, symm_connect=False
             )
         )
         self.classify = symm.SymmForward(
             snn=snnalgo.Tosnn(nn.Sequential(nn.Dropout(p=dropout), nn.Linear(512 * 7 * 7, num_classes))),
             ann=nn.Sequential(nn.Dropout(p=dropout), nn.Linear(512 * 7 * 7, num_classes)),
-            symm_training=False,
-            symm_connect=False
+            symm_training=False, symm_connect=False
         )
 
     def forward(self, snnx, annx):
